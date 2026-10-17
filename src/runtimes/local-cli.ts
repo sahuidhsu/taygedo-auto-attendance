@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises'
-import { loadRuntimeConfig } from '../config/runtime.js'
+import { loadRuntimeConfig, parseDailySchedule } from '../config/runtime.js'
 import { AttendanceService } from '../services/attendance-service.js'
 import { LoginService, type LoginServiceRunOptions } from '../services/login-service.js'
 import { createAccountStore, createStateStore } from '../stores/factory.js'
@@ -27,8 +27,10 @@ export async function runLocalCli(argv = process.argv.slice(2), deps: LocalCliDe
   if (command === 'attendance') {
     const accountsFile = options['accounts-file']
     const loopSeconds = parseLoopSeconds(process.env.TAYGEDO_LOOP_SECONDS)
+    const dailyAt = parseDailySchedule(optionalValue(process.env.TAYGEDO_RUN_AT))
     await runWithOptionalLoop({
       loopSeconds,
+      dailyAt,
       runOnce: async () => {
         await service.runAttendance({
           accountsFile: accountsFile ?? '',

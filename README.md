@@ -321,6 +321,7 @@ TAYGEDO_MAX_RETRIES=3
 TAYGEDO_ACCOUNT_CONCURRENCY=1
 TAYGEDO_FORCE_RUN=false
 TAYGEDO_LOOP_SECONDS=
+TAYGEDO_RUN_AT=09:30
 ```
 
 生成账号文件：
@@ -350,10 +351,18 @@ TAYGEDO_FORCE_RUN=true docker compose run --rm taygedo-attendance
 常驻循环模式：
 
 ```bash
+TAYGEDO_RUN_AT=09:30 docker compose up -d
+```
+
+设置 `TAYGEDO_RUN_AT`（24 小时制 `HH:MM`，上海时区）后，容器启动会先立即执行一次，之后每日固定在该时刻执行，不再受启动时间影响。配合今日去重，当天已签到时重复触发不会重复执行。
+
+也仍支持按间隔秒数循环（从启动时间开始倒计时）：
+
+```bash
 TAYGEDO_LOOP_SECONDS=86400 docker compose up -d
 ```
 
-设置后容器启动会立即执行一次，然后按秒循环。默认留空仍是一次性任务。
+两者同时设置时 `TAYGEDO_RUN_AT` 优先。默认留空仍是一次性任务，启动即执行一次后退出。
 
 本地构建镜像：
 
@@ -657,6 +666,7 @@ TAYGEDO_SERVERCHAN_SENDKEY=SCTxxxxxxxxxxxxxxxxxxxxxxxx
 | `TAYGEDO_ACCOUNT_CONCURRENCY` | 多账号并发数，默认 `1` |
 | `TAYGEDO_FORCE_RUN` | 忽略今日去重强制重跑，支持 `true` / `1` |
 | `TAYGEDO_LOOP_SECONDS` | Docker / 本地 CLI 常驻循环间隔秒数，留空表示执行一次 |
+| `TAYGEDO_RUN_AT` | Docker / 本地 CLI 每日固定执行时刻，24 小时制 `HH:MM`（上海时区），设置后优先于 `TAYGEDO_LOOP_SECONDS` |
 | `TAYGEDO_UPSTASH_REDIS_REST_URL` | Upstash REST URL |
 | `TAYGEDO_UPSTASH_REDIS_REST_TOKEN` | Upstash REST Token |
 | `REDIS_URL` / `KV_URL` | `unstorage` 后端自动选择普通 Redis |
