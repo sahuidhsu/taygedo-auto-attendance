@@ -94,6 +94,9 @@ describe('loadRuntimeConfig', () => {
     expect(loadRuntimeConfig({ TAYGEDO_RUN_AT: '9:30' })).toEqual(expect.objectContaining({
       dailyAt: { hour: 9, minute: 30 },
     }))
+    expect(loadRuntimeConfig({ TAYGEDO_RUN_AT: ' 09:30 ' })).toEqual(expect.objectContaining({
+      dailyAt: { hour: 9, minute: 30 },
+    }))
     expect(loadRuntimeConfig({ TAYGEDO_RUN_AT: '00:00' })).toEqual(expect.objectContaining({
       dailyAt: { hour: 0, minute: 0 },
     }))

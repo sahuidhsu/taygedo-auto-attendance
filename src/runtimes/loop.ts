@@ -1,9 +1,6 @@
-import { shanghaiDateTime } from '../utils/time.js'
+import { shanghaiDateTime, type DailySchedule } from '../utils/time.js'
 
-export interface DailySchedule {
-  hour: number
-  minute: number
-}
+export type { DailySchedule }
 
 export interface LoopRunnerOptions {
   loopSeconds?: number
@@ -48,26 +45,48 @@ export function formatDailySchedule(dailyAt: DailySchedule): string {
 
 export async function runWithOptionalLoop(options: LoopRunnerOptions): Promise<void> {
   const log = options.log ?? ((message: string) => console.log(message))
+  const schedule = options.schedule ?? setTimeout
+  const describeError = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
   if (options.dailyAt) {
     const dailyAt = options.dailyAt
-    const schedule = options.schedule ?? setTimeout
+    const startupNextRunAt = nextDailyRunAt(dailyAt)
     log(`定时模式：每日 ${formatDailySchedule(dailyAt)}（Asia/Shanghai）自动执行`)
-    await options.runOnce()
-    const arm = () => {
-      const nextRunAt = nextDailyRunAt(dailyAt)
-      const delayMs = nextRunAt.getTime() - Date.now()
+
+    // 首跑失败不能让常驻模式退出：否则一次启动抖动（账号文件读不到、状态写入失败等）会让每日定时永久失效。
+    // 一次性任务和循环模式仍保持“首跑失败即抛错”的语义。
+    try {
+      await options.runOnce()
+    } catch (error) {
+      log(`首次执行失败：${describeError(error)}`)
+    }
+
+    let firstArm = true
+
+    function arm(): void {
+      const now = new Date()
+      if (firstArm && startupNextRunAt.getTime() <= now.getTime()) {
+        log(`已错过 ${shanghaiDateTime(startupNextRunAt)} 的定时执行（首次执行耗时过长），本次跳过`)
+      }
+      firstArm = false
+      const nextRunAt = nextDailyRunAt(dailyAt, now)
+      // 下一次定时器只在本次执行结束后才装上，因此每日任务不会并发重入。
       log(`下次执行时间：${shanghaiDateTime(nextRunAt)}`)
       schedule(() => {
-        options.runOnce()
-          .catch((error: unknown) => {
-            console.error(error instanceof Error ? error.message : String(error))
-          })
-          .finally(() => {
-            arm()
-          })
-      }, delayMs)
+        void runScheduled()
+      }, nextRunAt.getTime() - now.getTime())
     }
+
+    async function runScheduled(): Promise<void> {
+      try {
+        await options.runOnce()
+      } catch (error) {
+        log(`执行失败：${describeError(error)}`)
+      } finally {
+        arm()
+      }
+    }
+
     arm()
     return
   }
@@ -77,7 +96,6 @@ export async function runWithOptionalLoop(options: LoopRunnerOptions): Promise<v
     return
   }
 
-  const schedule = options.schedule ?? setTimeout
   const nextRunAt = new Date(Date.now() + options.loopSeconds * 1000)
   log(`循环模式：每 ${options.loopSeconds} 秒执行一次，下次执行时间：${shanghaiDateTime(nextRunAt)}`)
   schedule(() => {

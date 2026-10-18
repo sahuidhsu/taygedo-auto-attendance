@@ -1,4 +1,4 @@
-import type { DailySchedule } from '../runtimes/loop.js'
+import type { DailySchedule } from '../utils/time.js'
 
 export type AccountStoreKind = 'env' | 'file' | 'cloudflare-kv' | 'upstash' | 'unstorage'
 export type StateStoreKind = 'memory' | 'file' | 'cloudflare-kv' | 'upstash' | 'unstorage'
@@ -85,10 +85,11 @@ function parseAccountPasswords(env: Record<string, string | undefined>): Record<
 }
 
 export function parseDailySchedule(value: string | undefined): DailySchedule | undefined {
-  if (!value) {
+  const trimmed = value?.trim()
+  if (!trimmed) {
     return undefined
   }
-  const match = /^(\d{1,2}):(\d{2})$/.exec(value)
+  const match = /^(\d{1,2}):(\d{2})$/.exec(trimmed)
   if (!match) {
     throw new Error('TAYGEDO_RUN_AT 必须是 HH:MM 格式（24 小时制），例如 09:30')
   }

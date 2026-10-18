@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises'
-import { loadRuntimeConfig, parseDailySchedule } from '../config/runtime.js'
+import { loadRuntimeConfig } from '../config/runtime.js'
 import { AttendanceService } from '../services/attendance-service.js'
 import { LoginService, type LoginServiceRunOptions } from '../services/login-service.js'
 import { createAccountStore, createStateStore } from '../stores/factory.js'
@@ -26,11 +26,11 @@ export async function runLocalCli(argv = process.argv.slice(2), deps: LocalCliDe
 
   if (command === 'attendance') {
     const accountsFile = options['accounts-file']
-    const loopSeconds = parseLoopSeconds(process.env.TAYGEDO_LOOP_SECONDS)
-    const dailyAt = parseDailySchedule(optionalValue(process.env.TAYGEDO_RUN_AT))
+    // 常驻/定时开关只在本地 CLI 生效，统一走运行时配置解析，避免两处解析行为不一致。
+    const config = loadRuntimeConfig(process.env)
     await runWithOptionalLoop({
-      loopSeconds,
-      dailyAt,
+      loopSeconds: config.loopSeconds,
+      dailyAt: config.dailyAt,
       runOnce: async () => {
         await service.runAttendance({
           accountsFile: accountsFile ?? '',
@@ -160,17 +160,6 @@ function optionalValue(value: string | undefined): string | undefined {
     return undefined
   }
   return value
-}
-
-function parseLoopSeconds(value: string | undefined): number | undefined {
-  if (!value || value.trim() === '') {
-    return undefined
-  }
-  const parsed = Number(value)
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error('TAYGEDO_LOOP_SECONDS 必须是正整数')
-  }
-  return parsed
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
