@@ -65,6 +65,43 @@ describe('runWithOptionalLoop', () => {
     }
   })
 
+  it('prints the configured daily time at startup and the next run time after each execution', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-10-18T05:00:00Z')) // 13:00 Asia/Shanghai
+      const messages: string[] = []
+      const runOnce = vi.fn().mockResolvedValue(undefined)
+      const schedule = vi.fn((callback: () => void, delayMs: number) => setTimeout(callback, delayMs))
+
+      await runWithOptionalLoop({
+        dailyAt: { hour: 9, minute: 30 },
+        runOnce,
+        schedule,
+        log: message => messages.push(message),
+      })
+
+      expect(messages[0]).toContain('每日 09:30')
+      expect(messages[1]).toContain('下次执行时间：2026-10-19T09:30:00+08:00')
+
+      await vi.advanceTimersByTimeAsync(20.5 * 60 * 60 * 1000)
+
+      expect(messages).toContain('下次执行时间：2026-10-20T09:30:00+08:00')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('prints the next run time in loop seconds mode', async () => {
+    const messages: string[] = []
+    const runOnce = vi.fn().mockResolvedValue(undefined)
+    const schedule = vi.fn()
+
+    await runWithOptionalLoop({ loopSeconds: 3600, runOnce, schedule, log: message => messages.push(message) })
+
+    expect(messages[0]).toContain('每 3600 秒执行一次')
+    expect(messages[0]).toContain('下次执行时间：')
+  })
+
   it('prefers the daily schedule over loop seconds', async () => {
     const runOnce = vi.fn().mockResolvedValue(undefined)
     const schedule = vi.fn()
